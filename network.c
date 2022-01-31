@@ -41,6 +41,7 @@ static void resize_fds();
 static void close_new_pair(struct pollpair *pair);
 static int handle_read(int fd, char *ptr, size_t *sz);
 static int handle_write(int fd, char *ptr, size_t *sz);
+static int is_pair_done(struct pollpair *pair);
 void remove_pair(struct pollpair *pair);
 
 const char BAD_ADDRESS[] = "Bad address. Expected format: <ip address>:<port>\\n\nE.g. 1.2.3.4:5678\\n\n";
@@ -160,6 +161,19 @@ int handle_write(int fd, char *ptr, size_t *sz) {
 	}
 }
 
+int is_pair_done(struct pollpair *pair) {
+	int in_left, out_left;
+
+	if (pair->src_fd >= 0 && pair->dest_fd >= 0) {
+		return 0;
+	}
+
+	in_left  = pair->dest_fd < 0 ? 0 : pair->in_sz;
+	out_left = pair->src_fd  < 0 ? 0 : pair->out_sz;
+
+	return !in_left && !out_left;
+}
+
 int handle_pair(struct pollpair *pair) {
 	int bytes;
 	int rv;
@@ -207,13 +221,29 @@ int handle_pair(struct pollpair *pair) {
 		}
 	}
 
+	if (pair->dest) {
+		if (pair->in_sz) {
+			pair->dest->events |= POLLOUT;
+		} else {
+			pair->dest->events &= ~POLLOUT;
+		}
+	}
+
+	if (pair->src) {
+		if (pair->out_sz) {
+			pair->src->events |= POLLOUT;
+		} else {
+			pair->src->events &= ~POLLOUT;
+		}
+	}
+
 	/* new connection */
 	if (pair->src_fd >= 0 && pair->state == STATE_NEW) {
 		handle_new_pair(pair);
 		if (pair->state != STATE_NEW) {
 			do_update = 1;
 		}
-	} else if (pair->src_fd < 0 || pair->dest_fd < 0) {
+	} else if (is_pair_done(pair)) {
 		pair->state = STATE_CLOSE;
 		do_update = 1;
 	}
@@ -346,12 +376,17 @@ void resize_fds()
 			cur->events = POLLIN | POLLOUT | POLLHUP;
 			pairs[i].src = cur;
 			cur--;
+		} else {
+			pairs[i].src = NULL;
 		}
+
 		if (pairs[i].dest_fd >= 0) {
 			cur->fd = pairs[i].dest_fd;
 			cur->events = POLLIN | POLLOUT | POLLHUP;
 			pairs[i].dest = cur;
 			cur--;
+		} else {
+			pairs[i].dest = NULL;
 		}
 	}
 }
