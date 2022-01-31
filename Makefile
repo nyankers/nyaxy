@@ -1,4 +1,4 @@
-CC=egcc
+CC=cc
 CFLAGS=-g
 
 HEADERS = nyaxy.h
