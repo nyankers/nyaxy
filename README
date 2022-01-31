@@ -18,6 +18,14 @@ pair) must be in the form of `<host>:<port>` e.g. `google.com:80`. That will
 determine what `nyaxy` should connect the client to.
 
 
+Security
+--------
+
+There is none built-in. You'll want to hide whatever port you open behind a
+firewall. For example, you could use `ssh` port-forwarding to access the
+program.
+
+
 Bugs
 ----
 
