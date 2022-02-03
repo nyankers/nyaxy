@@ -185,7 +185,7 @@ int handle_pair(struct pollpair *pair) {
 			if (rv < 0) {
 				pair->state = STATE_CLOSE;
 			}
-			else if (!rv && pair->src->revents & POLLHUP) {
+			else if (!rv) {
 				close(pair->src_fd);
 				pair->src_fd = -1;
 				do_update = 1;
@@ -206,7 +206,7 @@ int handle_pair(struct pollpair *pair) {
 			if (rv < 0) {
 				pair->state = STATE_CLOSE;
 			}
-			else if (!rv && pair->dest->revents & POLLHUP) {
+			else if (!rv) {
 				close(pair->dest_fd);
 				pair->dest_fd = -1;
 				do_update = 1;
@@ -373,7 +373,10 @@ void resize_fds()
 	for (i=pair_count; i--;) {
 		if (pairs[i].src_fd >= 0) {
 			cur->fd = pairs[i].src_fd;
-			cur->events = POLLIN | POLLOUT | POLLHUP;
+			cur->events = POLLIN | POLLHUP;
+			if (pairs[i].out_sz) {
+				cur->events |= POLLOUT;
+			}
 			pairs[i].src = cur;
 			cur--;
 		} else {
@@ -382,7 +385,10 @@ void resize_fds()
 
 		if (pairs[i].dest_fd >= 0) {
 			cur->fd = pairs[i].dest_fd;
-			cur->events = POLLIN | POLLOUT | POLLHUP;
+			cur->events = POLLIN | POLLHUP;
+			if (pairs[i].in_sz) {
+				cur->events |= POLLOUT;
+			}
 			pairs[i].dest = cur;
 			cur--;
 		} else {
